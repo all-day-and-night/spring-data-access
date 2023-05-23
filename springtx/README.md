@@ -51,6 +51,80 @@ Spring Transaction
 
 # 4. 트랜잭션 AOP 주의사항 - 프록시 내부 호출
 
+> @Transaction을 사용하면 spring의 트랜잭션 AOP가 적용된다.
+
+> 이 때 프록시 객체가 요청을 먼저 받아서 트랜잭션을 처리하고 실제 객체를 호출한다. 
+
+> 만약 프록시를 거치지 않고 대상 객체를 직접 호출할 경우 AOP가 적용되지 않고 트랜잭션 역시 적용되지 않는다.
+
+
+<img width="842" alt="image" src="https://github.com/all-day-and-night/spring-data-access/assets/94096054/a9ca11c4-e4cd-4f97-91b0-44936cb1514f">
+
+```
+public class CallService {
+    
+    public void external() {
+        log.info("call external");
+        printTxInfo();
+        internal();
+    }
+    
+    @Transactional
+    public void internal() {
+        log.info("call internal");
+        printTxInfo();
+    }
+}
+```
+
+> external 메서드는 트랜잭션 적용을 하지 않았고 internal 메서드는 @Transaction을 적용하였다. 
+
+> 이 때 external 메서드에서 internal 메서드를 호출하게 될 경우 트랜잭션은 적용되지 않는다.
+
+> 이유는 external은 트랜잭션이 적용되지 않아 프록시 객체를 통해 호출되지 않았고 이 때, internal을 호출할 경우 프록시를 거치지 않고 호출했기 때문에 Transaction이 적용되지 않는다.
+
+> 해결 방법은 internal 메서드를 프록시 객체를 거쳐 호출될 수 있도록 별도의 클래스를 사용하여 분리한다. 
+
+```
+ public class CallService {
+          private final InternalService internalService;
+          
+          public void external() {
+              log.info("call external");
+              printTxInfo();
+              internalService.internal();
+          }
+          private void printTxInfo() {
+              boolean txActive =
+              TransactionSynchronizationManager.isActualTransactionActive();
+              log.info("tx active={}", txActive);
+          } 
+}
+
+public class InternalService {
+          @Transactional
+          public void internal() {
+              log.info("call internal");
+              printTxInfo();
+          }
+          private void printTxInfo() {
+              boolean txActive =
+              TransactionSynchronizationManager.isActualTransactionActive();
+              log.info("tx active={}", txActive);
+          } 
+}
+```
+
+> 내부 프록시 호출 문제는 눈으로 봤을 때 전혀 이상이 없어 보이기 때문에 해결하기 어려운 문제다. 
+
+> 항상 AOP를 적용하여 사용한다는 점을 기억하고 @Transaction만 붙인다고 해결된다고 생각하지 말자!
+
+
+# 5. 트랜잭션 옵션
+
+
+
+
 
 
 
